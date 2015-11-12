@@ -56,6 +56,9 @@ IPA_TO_GERMAN = {
 }
 
 
+weak_schwa = re.compile(r'(ə)')
+
+
 def english_to_ipa(phrase):
     """Transforms a phrase in English to IPA
 
@@ -68,14 +71,13 @@ def english_to_ipa(phrase):
         'output_dialect': 'am',
         'text_to_transcribe': phrase,
     }
-    response = requests.post(url,
-        data=data)
-    # print(response.text)
+    response = requests.post(url, data=data)
     if response.status_code != requests.codes.ok:
         return word
     tree = html.fromstring(response.content)
     ipa = tree.xpath('//div[@id="transcr_output"]/span/text()')
     ipa = " ".join(ipa)
+    ipa = weak_schwa.sub("ə", ipa)
     return ipa
 
 
