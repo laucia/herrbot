@@ -5,6 +5,8 @@ import herrbot_secrets
 
 
 BOT_SCREEN_NAME = "herrbot_DE"
+ERROR_MSG = "Entschuldigung Ich spieke nur Deutsch von Englisch"
+
 
 RespondableTweet = namedtuple(
     typename='RespondableTweet',
@@ -80,6 +82,13 @@ def list_unresponded_mentions(api):
     return tweets_to_respond_to
 
 
+def _clean_text(text):
+    clean_text = text.replace("@{0}".format(BOT_SCREEN_NAME), "")
+    clean_text = clean_text.replace("@{0}".format(BOT_SCREEN_NAME.lower()), "")
+    clean_text = clean_text.strip()
+    return clean_text
+
+
 def respond_to_tweet(api, respondable_tweet, transformation_fn, debug=False):
     """ Make the bot respond to a tweet
 
@@ -92,9 +101,12 @@ def respond_to_tweet(api, respondable_tweet, transformation_fn, debug=False):
     """
     id_to_respond_to = respondable_tweet.tweet.id
     original_caller_name = respondable_tweet.bot_caller
-    original_text = respondable_tweet.tweet.text
-    original_text = original_text.replace("@{0}".format(BOT_SCREEN_NAME), "")
-    original_text = original_text.strip()
+
+    # Only respond if the tweet is in english
+    if respondable_tweet.tweet.lang == "en":
+        original_text = _clean_text(respondable_tweet.tweet.text)
+    else:
+        original_text = ERROR_MSG
 
     # Create status
     if original_caller_name == respondable_tweet.tweet.user.screen_name:
