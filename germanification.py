@@ -40,5 +40,20 @@ germanifications = [
         "break ai diphtong",
         re.compile(r'ai'),
         r'ahi',
-    )
+    ),
+    (
+        "final w",
+        re.compile(r'w\b'),
+        r'we'
+    ),
+    (
+        "öu",
+        re.compile(r'öu'),
+        r'o'
+    ),
+    (
+        "double h",
+        re.compile(r'hh'),
+        r'h'
+    ),
 ]

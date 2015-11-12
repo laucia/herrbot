@@ -88,8 +88,9 @@ def ipa_to_german(word):
     return "".join(letters)
 
 
-space_before_punctuation = re.compile(r'( )+([.,?!])')
+space_before_punctuation = re.compile(r'( )+([.,?!;])')
 two_spaces = re.compile(r'  ')  # weird space-like character
+
 
 def cleanup_german(phrase):
     result = phrase
