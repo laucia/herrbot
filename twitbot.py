@@ -66,15 +66,16 @@ def list_unresponded_mentions(api):
             )
 
     # fetch the tweets we should respond to
-    fetched_tweets = api.statuses_lookup(tweets_to_fetch.keys())
-    for tweet in fetched_tweets:
-        if not tweet.favorited:
-            tweets_to_respond_to.append(
-                RespondableTweet(
-                    tweet=tweet,
-                    bot_caller=tweets_to_fetch[str(tweet.id)]
+    if tweets_to_fetch:
+        fetched_tweets = api.statuses_lookup(tweets_to_fetch.keys())
+        for tweet in fetched_tweets:
+            if not tweet.favorited:
+                tweets_to_respond_to.append(
+                    RespondableTweet(
+                        tweet=tweet,
+                        bot_caller=tweets_to_fetch[str(tweet.id)]
+                    )
                 )
-            )
 
     return tweets_to_respond_to
 

@@ -101,3 +101,7 @@ def cleanup_german(phrase):
     result = space_before_punctuation.sub(r'\2', result)
     result = two_spaces.sub(r' ', result)
     return result
+
+
+def end2de(sentence):
+    return cleanup_german(ipa_to_german(english_to_ipa(sentence)))
