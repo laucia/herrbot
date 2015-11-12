@@ -23,7 +23,7 @@ IPA_TO_GERMAN = {
     'v': ['w'],
     'b': ['b'],
     'ʧ': ['tsch'],
-    'ə': ['ö'],
+    'ə': ['ö', 'e', 'a'],
     'θ': ['d', 't'],
     'X': ['ch'],
     'o': ['o'],
@@ -55,8 +55,7 @@ IPA_TO_GERMAN = {
     'ː': ['h', 'r'],
 }
 
-
-weak_schwa = re.compile(r'(ə)')
+weak_schwa = re.compile(r'\(ə\)')
 
 
 def english_to_ipa(phrase):

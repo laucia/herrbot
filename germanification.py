@@ -66,4 +66,9 @@ germanifications = [
         re.compile(r'wd'),
         r'wed',
     ),
+    (
+        "final consonant cluster pl",
+        re.compile(r'pl'),
+        r'pel',
+    ),
 ]
