@@ -1,7 +1,15 @@
+from collections import namedtuple
 import time
 import tweepy
 import herrbot_secrets
 
+
+BOT_SCREEN_NAME = "herrbot_DE"
+
+RespondableTweet = namedtuple(
+    typename='RespondableTweet',
+    field_names = ["tweet", "bot_caller"],
+)
 
 def report_error(api, e):
     """ Report an exception to the owner of this bot
@@ -31,3 +39,79 @@ def get_api():
         herrbot_secrets.herrbot_secret,
     )
     return tweepy.API(auth)
+
+
+def list_unresponded_mentions(api):
+    """ List all the "unresponded" tweets.
+    Unresponded is determined by non-favorited.
+
+        :param: api: tweepy.API instance
+    """
+    mention_tweets = api.mentions_timeline()
+    tweets_to_respond_to = []
+
+    tweets_to_fetch = {}
+
+
+    # Parse the direct mention tweets
+    for tweet in mention_tweets:
+        if tweet.in_reply_to_status_id:
+            tweets_to_fetch[tweet.in_reply_to_status_id_str] = tweet.user.screen_name
+        elif not tweet.favorited:
+            tweets_to_respond_to.append(
+                RespondableTweet(
+                    tweet=tweet,
+                    bot_caller=tweet.user.screen_name,
+                )
+            )
+
+    # fetch the tweets we should respond to
+    fetched_tweets = api.statuses_lookup(tweets_to_fetch.keys())
+    for tweet in fetched_tweets:
+        if not tweet.favorited:
+            tweets_to_respond_to.append(
+                RespondableTweet(
+                    tweet=tweet,
+                    bot_caller=tweets_to_fetch[str(tweet.id)]
+                )
+            )
+
+    return tweets_to_respond_to
+
+
+def respond_to_tweet(api, respondable_tweet, transformation_fn, debug=False):
+    """ Make the bot respond to a tweet
+
+        :param: api: tweepy.API instance
+        :param: respondable_tweet: RespondableTweet instance
+        :param: transformation_fn: string->string function
+        :param: debug: boolean: When true the function print instead of hitting
+        the twitter API
+
+    """
+    id_to_respond_to = respondable_tweet.tweet.id
+    original_caller_name = respondable_tweet.bot_caller
+    original_text = respondable_tweet.tweet.text
+    original_text = original_text.replace("@{0}".format(BOT_SCREEN_NAME), "")
+    original_text = original_text.strip()
+
+    # Create status
+    if original_caller_name == respondable_tweet.tweet.user.screen_name:
+        callers = "@{0} ".format(original_caller_name)
+    else:
+        callers = "@{0} @{1} ".format(
+            original_caller_name,
+            respondable_tweet.tweet.user.screen_name,
+        )
+    status_text = transformation_fn(original_text)
+    status_text = callers + status_text[-(141 - len(callers)):]
+
+    if debug:
+        print(status_text)
+        print(id_to_respond_to)
+    else:
+        api.update_status(
+            status=status_text,
+            in_reply_to_status_id=id_to_respond_to,
+        )
+        api.create_favorite(id_to_respond_to)
