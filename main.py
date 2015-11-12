@@ -3,9 +3,9 @@ from twitbot import (
     list_unresponded_mentions,
     respond_to_tweet,
 )
-from en2de import end2de
+from germanizator import english_to_deutsch
 
 
 api = get_api()
 for tweet in list_unresponded_mentions(api):
-    respond_to_tweet(api, tweet, end2de, debug=True)
+    respond_to_tweet(api, tweet, english_to_deutsch, debug=True)
