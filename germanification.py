@@ -58,17 +58,17 @@ germanifications = [
     ),
     (
         "final consonant cluster bl",
-        re.compile(r'bl'),
+        re.compile(r'bl\b'),
         r'bel',
     ),
     (
         "final consonant cluster wd",
-        re.compile(r'wd'),
+        re.compile(r'wd\b'),
         r'wed',
     ),
     (
         "final consonant cluster pl",
-        re.compile(r'pl'),
+        re.compile(r'pl\b'),
         r'pel',
     ),
 ]
