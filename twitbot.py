@@ -1,31 +1,13 @@
-from collections import namedtuple
 import time
+from collections import namedtuple
+from functools import wraps
+
 import tweepy
 import herrbot_secrets
 
 
-BOT_SCREEN_NAME = "herrbot_DE"
-ERROR_MSG = "Entschuldigung Ich spieke nur Deutsch von Englisch"
-
-
-RespondableTweet = namedtuple(
-    typename='RespondableTweet',
-    field_names = ["tweet", "bot_caller"],
-)
-
-def report_error(api, e):
-    """ Report an exception to the owner of this bot
-
-        :param: api: tweepy.API instance
-        :param: e: exception instance
-
-    """
-    error_msg = e.__class__.__name__ + ": " + str(e)
-
-    api.send_direct_message(
-        screen_name = herrbot_secrets.owner,
-        text = error_msg[-130:] + ": " + time.strftime("%H:%M:%S"),
-    )
+# Authentication
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 def get_api():
     """ login and return an usable api
@@ -43,6 +25,65 @@ def get_api():
     return tweepy.API(auth)
 
 
+# Error Reporting
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+def report_error(api, e):
+    """ Report an exception to the owner of this bot
+
+        :param: api: tweepy.API instance
+        :param: e: exception instance
+
+    """
+    error_msg = e.__class__.__name__ + ": " + str(e)
+
+    try:
+        api.send_direct_message(
+            screen_name = herrbot_secrets.owner,
+            text = error_msg[-130:] + ": " + time.strftime("%H:%M:%S"),
+        )
+    except Exception as e:
+        pass  # we still want to log the original error
+
+
+
+def with_report_error(f):
+    """ Decorator to automatically report errors via twitter when they happen
+    within a function
+    """
+    @wraps(f)
+    def wrapper(api, *args, **kwargs):
+        try:
+            return f(api ,*args, **kwargs)
+        except Exception as e:
+            report_error(api, e)
+            raise
+
+    return wrapper
+
+
+# Error Reporting
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+BOT_SCREEN_NAME = "herrbot_DE"
+NOT_EN_ERROR_MSG = "Entschuldigung Ich spieke nur Deutsch von Englisch"
+
+
+RespondableTweet = namedtuple(
+    typename='RespondableTweet',
+    field_names = ["tweet", "bot_caller"],
+)
+
+
+def _clean_bot_name(text):
+    """ Remove the bots own name from the text we send back """
+    clean_text = text.replace("@{0}".format(BOT_SCREEN_NAME), "")
+    clean_text = clean_text.replace("@{0}".format(BOT_SCREEN_NAME.lower()), "")
+    clean_text = clean_text.strip()
+    return clean_text
+
+
+@with_report_error
 def list_unresponded_mentions(api):
     """ List all the "unresponded" tweets.
     Unresponded is determined by non-favorited.
@@ -54,11 +95,12 @@ def list_unresponded_mentions(api):
 
     tweets_to_fetch = {}
 
-
     # Parse the direct mention tweets
     for tweet in mention_tweets:
         if tweet.in_reply_to_status_id:
-            tweets_to_fetch[tweet.in_reply_to_status_id_str] = tweet.user.screen_name
+            tweets_to_fetch[tweet.in_reply_to_status_id_str] = (
+                tweet.user.screen_name
+            )
         elif not tweet.favorited:
             tweets_to_respond_to.append(
                 RespondableTweet(
@@ -81,16 +123,10 @@ def list_unresponded_mentions(api):
 
     return tweets_to_respond_to
 
-
-def _clean_text(text):
-    clean_text = text.replace("@{0}".format(BOT_SCREEN_NAME), "")
-    clean_text = clean_text.replace("@{0}".format(BOT_SCREEN_NAME.lower()), "")
-    clean_text = clean_text.strip()
-    return clean_text
-
-
+@with_report_error
 def respond_to_tweet(api, respondable_tweet, transformation_fn, debug=False):
-    """ Make the bot respond to a tweet
+    """ Make the bot respond to a tweet, and favorite it so it is not responded
+    again.
 
         :param: api: tweepy.API instance
         :param: respondable_tweet: RespondableTweet instance
@@ -99,16 +135,20 @@ def respond_to_tweet(api, respondable_tweet, transformation_fn, debug=False):
         the twitter API
 
     """
+    # Extract important informations
     id_to_respond_to = respondable_tweet.tweet.id
     original_caller_name = respondable_tweet.bot_caller
+    original_text = respondable_tweet.tweet.text
+    is_english = respondable_tweet.tweet.lang == "en"
 
-    # Only respond if the tweet is in english
-    if respondable_tweet.tweet.lang == "en":
-        original_text = _clean_text(respondable_tweet.tweet.text)
+    # Generate status text, depending on tweet language
+    if is_english:
+        status_text = _clean_bot_name(original_text)
+        status_text = transformation_fn(status_text)
     else:
-        original_text = ERROR_MSG
+        status_text = NOT_EN_ERROR_MSG
 
-    # Create status
+    # Get callers
     if original_caller_name == respondable_tweet.tweet.user.screen_name:
         callers = "@{0} ".format(original_caller_name)
     else:
@@ -116,9 +156,9 @@ def respond_to_tweet(api, respondable_tweet, transformation_fn, debug=False):
             original_caller_name,
             respondable_tweet.tweet.user.screen_name,
         )
-    status_text = transformation_fn(original_text)
     status_text = callers + status_text[-(141 - len(callers)):]
 
+    # Send messages
     if debug:
         print(status_text)
         print(id_to_respond_to)
